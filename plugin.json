@@ -1,0 +1,11 @@
+{
+  "name": "Gurren",
+  "author": "niwia",
+  "flags": ["root"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["gaming", "download-manager"],
+    "description": "ASSella game library update manager for Steam Deck — powered by Lagann",
+    "image": ""
+  }
+}

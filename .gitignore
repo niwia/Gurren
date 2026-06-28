@@ -1,0 +1,22 @@
+# Node
+node_modules/
+.pnpm-store/
+package-lock.json
+
+# Build output
+dist/
+out/
+
+# Decky CLI artifacts
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Editor
+.vscode/
+.idea/
+*.swp
