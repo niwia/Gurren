@@ -1,6 +1,4 @@
-# Lagann headless requirements
-# PyQt6 and urwid are intentionally excluded — not needed in headless --helper mode.
-# Full GUI deps are only needed if running the ASSella desktop app directly.
+# Lagann headless requirements (including PyQt6 and urwid due to top-level imports in ASSella main.py)
 
 PyYAML==6.0.3
 requests==2.34.0
@@ -11,3 +9,5 @@ protobuf==5.29.6
 vdf @ git+https://github.com/solsticegamestudios/vdf.git@v4.0
 psutil==7.2.2
 configobj==5.0.9
+PyQt6
+urwid
