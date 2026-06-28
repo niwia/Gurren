@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# install.sh — Gurren one-shot installer
+# install.sh — Lagann backend installer for Gurren
 # Usage: curl -fsSL https://raw.githubusercontent.com/niwia/Gurren/main/install.sh | bash
 #
 # What this does:
 #   1. Fetches the latest Gurren release from GitHub
-#   2. Downloads & extracts the release bundle
-#   3. Runs lagann_setup.sh to install the Lagann backend
-#   4. Tells you where to find Gurren.zip for Decky Loader
-#   5. Cleans up temporary files
+#   2. Downloads & extracts the Lagann backend bundle
+#   3. Installs everything to ~/.local/share/Lagann/
+#
+# After this, download Gurren.zip from the GitHub release page and
+# install it via Decky Loader → Settings → Developer → Install Plugin from ZIP
 
 set -euo pipefail
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 GITHUB_REPO="niwia/Gurren"
-INSTALL_DIR="$HOME/.local/share/Lagann"
 TMP_DIR="$(mktemp -d /tmp/gurren_install_XXXXXX)"
 
 # ── Colors ─────────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ error()   { echo -e "${RED}[ERROR]${NC} $*"; rm -rf "$TMP_DIR"; exit 1; }
 # ── Banner ─────────────────────────────────────────────────────────────────────
 echo -e ""
 echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}${BOLD}║   Gurren Installer — ASSella Manager for Decky   ║${NC}"
+echo -e "${CYAN}${BOLD}║      Lagann Installer — backend for Gurren       ║${NC}"
 echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════════════╝${NC}"
 echo -e ""
 
@@ -45,48 +45,40 @@ done
 success "Prerequisites OK (curl, python3, unzip)"
 
 # ── Fetch latest release ───────────────────────────────────────────────────────
-info "Fetching latest Gurren release info from GitHub..."
+info "Fetching latest release info from GitHub..."
 API_URL="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
-RELEASE_JSON=$(curl -fsSL "$API_URL") || error "Failed to fetch release info from GitHub."
+RELEASE_JSON=$(curl -fsSL "$API_URL") || error "Failed to fetch release info. Check your internet connection."
 
-# Extract version tag
 VERSION=$(echo "$RELEASE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])")
 info "Latest release: ${BOLD}${VERSION}${NC}"
 
-# Find the release bundle URL (the big zip, not the Gurren plugin zip)
+# Find the Lagann bundle zip (not the Gurren plugin zip)
 BUNDLE_URL=$(echo "$RELEASE_JSON" | python3 -c "
 import sys, json
 assets = json.load(sys.stdin)['assets']
-# Prefer the release bundle zip (not the plugin zip)
+# Prefer a zip with 'lagann' in the name
 for a in assets:
-    if 'release' in a['name'].lower() or 'bundle' in a['name'].lower():
+    name = a['name'].lower()
+    if 'lagann' in name and name.endswith('.zip'):
         print(a['browser_download_url'])
         sys.exit(0)
-# Fallback: first zip that isn't just 'Gurren.zip'
+# Fallback: any zip that is not the bare Gurren plugin
 for a in assets:
-    if a['name'].endswith('.zip') and a['name'] != 'Gurren.zip':
-        print(a['browser_download_url'])
-        sys.exit(0)
-# Last resort: any zip
-for a in assets:
-    if a['name'].endswith('.zip'):
+    name = a['name'].lower()
+    if name.endswith('.zip') and name != 'gurren.zip':
         print(a['browser_download_url'])
         sys.exit(0)
 print('')
 ") || true
 
-# If no release asset found, fall back to source tarball
 if [ -z "$BUNDLE_URL" ]; then
-    warn "No release bundle found — falling back to GitHub source archive."
-    BUNDLE_URL="https://github.com/${GITHUB_REPO}/archive/refs/tags/${VERSION}.tar.gz"
-    BUNDLE_TYPE="tar"
-else
-    BUNDLE_TYPE="zip"
+    error "Could not find the Lagann bundle in the release assets.
+  Visit: https://github.com/${GITHUB_REPO}/releases/latest"
 fi
 
 # ── Download ───────────────────────────────────────────────────────────────────
-BUNDLE_FILE="$TMP_DIR/gurren_bundle.${BUNDLE_TYPE}"
-info "Downloading release bundle..."
+BUNDLE_FILE="$TMP_DIR/lagann_bundle.zip"
+info "Downloading Lagann bundle..."
 curl -fsSL --progress-bar -o "$BUNDLE_FILE" "$BUNDLE_URL" \
     || error "Download failed. Check your internet connection."
 success "Downloaded: $(du -sh "$BUNDLE_FILE" | cut -f1)"
@@ -95,50 +87,36 @@ success "Downloaded: $(du -sh "$BUNDLE_FILE" | cut -f1)"
 info "Extracting..."
 EXTRACT_DIR="$TMP_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
+unzip -q "$BUNDLE_FILE" -d "$EXTRACT_DIR"
 
-if [ "$BUNDLE_TYPE" = "zip" ]; then
-    unzip -q "$BUNDLE_FILE" -d "$EXTRACT_DIR"
-else
-    tar -xzf "$BUNDLE_FILE" -C "$EXTRACT_DIR" --strip-components=1
+# Find lagann_setup.sh anywhere inside the extracted bundle
+SETUP_SCRIPT=$(find "$EXTRACT_DIR" -name "lagann_setup.sh" -maxdepth 4 | head -1 || true)
+if [ -z "$SETUP_SCRIPT" ]; then
+    error "lagann_setup.sh not found inside the bundle. Unexpected structure."
 fi
-
-# Find the directory that contains lagann_setup.sh
-SETUP_DIR=$(find "$EXTRACT_DIR" -name "lagann_setup.sh" -maxdepth 3 | head -1 | xargs dirname 2>/dev/null || true)
-if [ -z "$SETUP_DIR" ]; then
-    error "lagann_setup.sh not found in the release bundle. Unexpected bundle structure."
-fi
-success "Extracted to: $SETUP_DIR"
+success "Bundle extracted"
 
 # ── Run lagann_setup.sh ────────────────────────────────────────────────────────
 echo -e ""
-info "Running Lagann backend setup..."
+info "Running Lagann setup..."
 echo -e ""
-bash "$SETUP_DIR/lagann_setup.sh"
-
-# ── Copy Gurren.zip to home ────────────────────────────────────────────────────
-GURREN_ZIP=$(find "$SETUP_DIR" -name "Gurren.zip" | head -1 || true)
-if [ -n "$GURREN_ZIP" ]; then
-    cp "$GURREN_ZIP" "$HOME/Gurren.zip"
-    echo -e ""
-    success "Gurren.zip saved to: ${BOLD}$HOME/Gurren.zip${NC}"
-fi
+bash "$SETUP_SCRIPT"
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
 rm -rf "$TMP_DIR"
 
-# ── Final instructions ─────────────────────────────────────────────────────────
+# ── Done ───────────────────────────────────────────────────────────────────────
 echo -e ""
 echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}${BOLD}║  ✓ Lagann backend installed!                     ║${NC}"
+echo -e "${GREEN}${BOLD}║  ✓ Lagann installed!                             ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                  ║${NC}"
-echo -e "${GREEN}${BOLD}║  Now install the Decky plugin:                   ║${NC}"
+echo -e "${GREEN}${BOLD}║  Next: install the Gurren Decky plugin           ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                  ║${NC}"
-echo -e "${GREEN}${BOLD}║  1. Open Decky Loader                            ║${NC}"
-echo -e "${GREEN}${BOLD}║  2. Settings → Developer                         ║${NC}"
-echo -e "${GREEN}${BOLD}║  3. Install Plugin from ZIP                      ║${NC}"
-echo -e "${GREEN}${BOLD}║  4. Select: ~/Gurren.zip                         ║${NC}"
+echo -e "${GREEN}${BOLD}║  1. Download Gurren.zip from:                    ║${NC}"
+echo -e "${GREEN}${BOLD}║     github.com/niwia/Gurren/releases/latest      ║${NC}"
 echo -e "${GREEN}${BOLD}║                                                  ║${NC}"
-echo -e "${GREEN}${BOLD}║  Lagann installed to:                            ║${NC}"
-echo -e "${GREEN}${BOLD}║    ~/.local/share/Lagann/                        ║${NC}"
+echo -e "${GREEN}${BOLD}║  2. In Decky Loader:                             ║${NC}"
+echo -e "${GREEN}${BOLD}║     Settings → Developer →                       ║${NC}"
+echo -e "${GREEN}${BOLD}║     Install Plugin from ZIP                      ║${NC}"
 echo -e "${GREEN}${BOLD}╚══════════════════════════════════════════════════╝${NC}"
 echo -e ""
