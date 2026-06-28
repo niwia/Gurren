@@ -1,6 +1,7 @@
 """Lagann — Gurren Decky Loader Plugin backend.
 
 Exposes backend integration methods for ASSella.
+All runtime files live under: /home/deck/.local/share/Lagann/
 """
 
 import os
@@ -16,6 +17,21 @@ except ImportError:
     logger = logging.getLogger("lagann")
 
 
+# ─── Lagann install directory ─────────────────────────────────────────────────
+LAGANN_DIR   = os.path.expanduser("~/.local/share/Lagann")
+ASSHEAD      = os.path.join(LAGANN_DIR, "asshead")
+PYTHON_EXEC  = os.path.join(LAGANN_DIR, "venv", "bin", "python3")
+SRC_MAIN     = os.path.join(LAGANN_DIR, "src", "main.py")
+
+# ASSella writes its update cache here (unchanged — must match ASSella's own path)
+ACCELA_CACHE = os.path.expanduser("~/.local/share/ACCELA/update_status_cache.json")
+
+# Temp log files for background processes
+LOG_CHECK_UPDATES = "/tmp/lagann_check_updates.log"
+LOG_DOWNLOAD_FMT  = "/tmp/lagann_download_{appid}.log"
+# ──────────────────────────────────────────────────────────────────────────────
+
+
 def _j(obj) -> str:
     """Ensure we always return a JSON string to the frontend."""
     if isinstance(obj, str):
@@ -27,20 +43,30 @@ def _j(obj) -> str:
     return json.dumps(obj)
 
 
+def _lagann_ready() -> bool:
+    """Check that the Lagann runtime is installed and functional."""
+    return (
+        os.path.isdir(LAGANN_DIR)
+        and os.path.isfile(ASSHEAD)
+        and os.path.isfile(PYTHON_EXEC)
+        and os.path.isfile(SRC_MAIN)
+    )
+
+
 # Global tracking for background processes
 ACTIVE_PROCESSES = {}
 
 
 def get_steam_libraries():
     paths = []
-    steam_path = "/home/deck/.local/share/Steam"
+    steam_path = os.path.expanduser("~/.local/share/Steam")
     if not os.path.isdir(steam_path):
         steam_path = os.path.expanduser("~/.steam/steam")
-    
+
     library_vdf = os.path.join(steam_path, "steamapps", "libraryfolders.vdf")
     if not os.path.exists(library_vdf):
         library_vdf = os.path.join(steam_path, "config", "libraryfolders.vdf")
-        
+
     if os.path.exists(library_vdf):
         try:
             with open(library_vdf, "r", encoding="utf-8") as f:
@@ -51,8 +77,8 @@ def get_steam_libraries():
                 if os.path.isdir(p):
                     paths.append(p)
         except Exception as e:
-            logger.error(f"DeckTools: Error reading libraryfolders.vdf: {e}")
-            
+            logger.error(f"Lagann: Error reading libraryfolders.vdf: {e}")
+
     if not paths:
         paths = [steam_path]
     return paths
@@ -61,26 +87,25 @@ def get_steam_libraries():
 def scan_assella_games():
     libraries = get_steam_libraries()
     games = []
-    
-    # Load update cache
+
+    # Load update cache written by ASSella
     cache = {}
-    cache_path = "/home/deck/.local/share/ACCELA/update_status_cache.json"
-    if os.path.exists(cache_path):
+    if os.path.exists(ACCELA_CACHE):
         try:
-            with open(cache_path, "r", encoding="utf-8") as f:
+            with open(ACCELA_CACHE, "r", encoding="utf-8") as f:
                 raw = json.load(f)
             for appid, entry in raw.items():
                 if isinstance(entry, dict) and "status" in entry:
                     cache[str(appid)] = entry["status"]
         except Exception as e:
-            logger.error(f"DeckTools: Error loading update status cache: {e}")
+            logger.error(f"Lagann: Error loading update status cache: {e}")
 
     for lib in libraries:
         steamapps = os.path.join(lib, "steamapps")
         common = os.path.join(steamapps, "common")
         if not os.path.isdir(common):
             continue
-            
+
         try:
             acf_files = [f for f in os.listdir(steamapps) if f.startswith("appmanifest_") and f.endswith(".acf")]
             for acf in acf_files:
@@ -89,27 +114,26 @@ def scan_assella_games():
                 if not appid_match:
                     continue
                 appid = appid_match.group(1)
-                
+
                 try:
                     with open(acf_path, "r", encoding="utf-8", errors="ignore") as f:
                         acf_content = f.read()
-                    
+
                     name_match = re.search(r'"name"\s*"([^"]+)"', acf_content)
                     installdir_match = re.search(r'"installdir"\s*"([^"]+)"', acf_content)
-                    
+
                     if name_match and installdir_match:
                         game_name = name_match.group(1)
                         installdir = installdir_match.group(1)
                         game_path = os.path.join(common, installdir)
-                        
+
                         if os.path.isdir(game_path):
-                            # Check for markers
                             has_marker = False
                             for marker in (".ACCELA", ".DepotDownloader"):
                                 if os.path.exists(os.path.join(game_path, marker)):
                                     has_marker = True
                                     break
-                            
+
                             if has_marker:
                                 status = cache.get(appid, "up_to_date")
                                 games.append({
@@ -121,9 +145,9 @@ def scan_assella_games():
                 except Exception:
                     continue
         except Exception as e:
-            logger.error(f"DeckTools: Error scanning library {lib}: {e}")
+            logger.error(f"Lagann: Error scanning library {lib}: {e}")
             continue
-            
+
     games.sort(key=lambda x: x["name"].lower())
     return games
 
@@ -134,10 +158,15 @@ class Plugin:
     # ==========================================================================
 
     async def _main(self):
-        logger.info("DeckTools: Plugin loaded")
+        logger.info("Lagann: Plugin loaded")
+        if not _lagann_ready():
+            logger.warning(
+                f"Lagann: runtime not found at {LAGANN_DIR}. "
+                "Please run lagann_setup.sh to install."
+            )
 
     async def _unload(self):
-        logger.info("DeckTools: Plugin unloading")
+        logger.info("Lagann: Plugin unloading")
         for key, proc in list(ACTIVE_PROCESSES.items()):
             try:
                 proc.terminate()
@@ -146,69 +175,82 @@ class Plugin:
         ACTIVE_PROCESSES.clear()
 
     # ==========================================================================
+    # Lagann Health
+    # ==========================================================================
+
+    async def check_lagann_ready(self) -> str:
+        """Return whether the Lagann runtime is installed and ready."""
+        ready = _lagann_ready()
+        return _j({
+            "ready": ready,
+            "lagann_dir": LAGANN_DIR,
+            "missing": [] if ready else [
+                p for p in [ASSHEAD, PYTHON_EXEC, SRC_MAIN]
+                if not os.path.isfile(p)
+            ]
+        })
+
+    # ==========================================================================
     # ASSella Plugin API
     # ==========================================================================
 
     async def get_assella_games(self) -> str:
         """Scan and return installed ASSella games with update statuses."""
+        if not _lagann_ready():
+            return _j({"success": False, "error": "Lagann runtime not installed. Run lagann_setup.sh first."})
         try:
             games = scan_assella_games()
             return _j({"success": True, "games": games})
         except Exception as e:
-            logger.error(f"DeckTools: Error in get_assella_games: {e}")
+            logger.error(f"Lagann: Error in get_assella_games: {e}")
             return _j({"success": False, "error": str(e)})
 
     async def check_updates_all(self) -> str:
         """Trigger update check on all games in the background."""
+        if not _lagann_ready():
+            return _j({"success": False, "error": "Lagann runtime not installed. Run lagann_setup.sh first."})
+
         proc_key = "check_updates"
         if proc_key in ACTIVE_PROCESSES:
-            poll = ACTIVE_PROCESSES[proc_key].poll()
-            if poll is None:
+            if ACTIVE_PROCESSES[proc_key].poll() is None:
                 return _j({"success": True, "message": "Already checking updates."})
-        
-        log_path = "/tmp/assella_check_updates.log"
-        if os.path.exists(log_path):
+
+        if os.path.exists(LOG_CHECK_UPDATES):
             try:
-                os.remove(log_path)
+                os.remove(LOG_CHECK_UPDATES)
             except Exception:
                 pass
-            
-        cmd = [
-            "sudo", "-u", "deck",
-            "/home/deck/Projects/ASSella/asshead",
-            "--check-updates"
-        ]
+
+        cmd = ["sudo", "-u", "deck", ASSHEAD, "--check-updates"]
         try:
-            log_file = open(log_path, "w")
+            log_file = open(LOG_CHECK_UPDATES, "w")
             proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True)
             ACTIVE_PROCESSES[proc_key] = proc
             return _j({"success": True})
         except Exception as e:
-            logger.error(f"DeckTools: Failed to start check_updates_all: {e}")
+            logger.error(f"Lagann: Failed to start check_updates_all: {e}")
             return _j({"success": False, "error": str(e)})
 
     async def get_check_updates_status(self) -> str:
         """Return the status of the global update check."""
         proc_key = "check_updates"
         proc = ACTIVE_PROCESSES.get(proc_key)
-        
+
         running = False
         if proc:
-            poll = proc.poll()
-            if poll is None:
+            if proc.poll() is None:
                 running = True
             else:
                 del ACTIVE_PROCESSES[proc_key]
-                
-        log_path = "/tmp/assella_check_updates.log"
+
         progress = 0
         status_msg = "Checking for updates..."
         completed = False
         error = False
-        
-        if os.path.exists(log_path):
+
+        if os.path.exists(LOG_CHECK_UPDATES):
             try:
-                with open(log_path, "r", encoding="utf-8") as f:
+                with open(LOG_CHECK_UPDATES, "r", encoding="utf-8") as f:
                     lines = f.readlines()
                 for line in reversed(lines):
                     if "Update check progress:" in line:
@@ -233,15 +275,15 @@ class Plugin:
                 status_msg = f"Reading log failed: {e}"
         else:
             status_msg = "Not started"
-            
+
         if not running and not completed and not error:
-            if os.path.exists(log_path):
+            if os.path.exists(LOG_CHECK_UPDATES):
                 completed = True
                 progress = 100
                 status_msg = "Completed."
             else:
                 status_msg = "Idle"
-                
+
         return _j({
             "running": running,
             "progress": progress,
@@ -252,52 +294,49 @@ class Plugin:
 
     async def update_game(self, appid: int) -> str:
         """Trigger update/download for a game in the background."""
+        if not _lagann_ready():
+            return _j({"success": False, "error": "Lagann runtime not installed. Run lagann_setup.sh first."})
+
         appid_str = str(appid)
         if appid_str in ACTIVE_PROCESSES:
-            poll = ACTIVE_PROCESSES[appid_str].poll()
-            if poll is None:
+            if ACTIVE_PROCESSES[appid_str].poll() is None:
                 return _j({"success": True, "message": "Already updating this game."})
-                
-        log_path = f"/tmp/assella_download_{appid_str}.log"
+
+        log_path = LOG_DOWNLOAD_FMT.format(appid=appid_str)
         if os.path.exists(log_path):
             try:
                 os.remove(log_path)
             except Exception:
                 pass
-            
-        cmd = [
-            "sudo", "-u", "deck",
-            "/home/deck/Projects/ASSella/asshead",
-            "--appid", appid_str
-        ]
+
+        cmd = ["sudo", "-u", "deck", ASSHEAD, "--appid", appid_str]
         try:
             log_file = open(log_path, "w")
             proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True)
             ACTIVE_PROCESSES[appid_str] = proc
             return _j({"success": True})
         except Exception as e:
-            logger.error(f"DeckTools: Failed to start update for game {appid}: {e}")
+            logger.error(f"Lagann: Failed to start update for game {appid}: {e}")
             return _j({"success": False, "error": str(e)})
 
     async def get_update_game_status(self, appid: int) -> str:
         """Return the status of a specific game update."""
         appid_str = str(appid)
         proc = ACTIVE_PROCESSES.get(appid_str)
-        
+
         running = False
         if proc:
-            poll = proc.poll()
-            if poll is None:
+            if proc.poll() is None:
                 running = True
             else:
                 del ACTIVE_PROCESSES[appid_str]
-                
-        log_path = f"/tmp/assella_download_{appid_str}.log"
+
+        log_path = LOG_DOWNLOAD_FMT.format(appid=appid_str)
         progress = 0
         status_msg = "Starting update..."
         completed = False
         error = False
-        
+
         if os.path.exists(log_path):
             try:
                 with open(log_path, "r", encoding="utf-8") as f:
@@ -306,8 +345,7 @@ class Plugin:
                     if "Download progress:" in line:
                         m = re.search(r"Download progress:\s*(\d+)%", line)
                         if m:
-                            progress = int(m.group(1))
-                            progress = int(progress * 0.9)  # scale down to leave room for post-processing
+                            progress = int(int(m.group(1)) * 0.9)
                             status_msg = f"Downloading: {m.group(1)}%"
                             break
                     elif "Running post-processing pipeline" in line:
@@ -327,7 +365,7 @@ class Plugin:
                 status_msg = f"Reading log failed: {e}"
         else:
             status_msg = "Not started"
-            
+
         if not running and not completed and not error:
             if os.path.exists(log_path):
                 completed = True
@@ -335,7 +373,7 @@ class Plugin:
                 status_msg = "Completed."
             else:
                 status_msg = "Idle"
-                
+
         return _j({
             "running": running,
             "progress": progress,

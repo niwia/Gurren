@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# asshead — Lagann headless launcher for ASSella
+# This script is installed to: ~/.local/share/Lagann/asshead
+# It is called by the Gurren Decky Loader plugin backend (main.py / Lagann).
+
+LAGANN_DIR="$HOME/.local/share/Lagann"
+PYTHON_EXEC="$LAGANN_DIR/venv/bin/python3"
+SRC_MAIN="$LAGANN_DIR/src/main.py"
+
+if [ ! -f "$PYTHON_EXEC" ]; then
+    echo "Error: Lagann Python venv not found at $PYTHON_EXEC"
+    echo "Please run lagann_setup.sh to install Lagann."
+    exit 1
+fi
+
+if [ ! -f "$SRC_MAIN" ]; then
+    echo "Error: ASSella source not found at $SRC_MAIN"
+    echo "Please run lagann_setup.sh to install Lagann."
+    exit 1
+fi
+
+export PYTHONPATH="$LAGANN_DIR/src"
+QT_QPA_PLATFORM=offscreen exec "$PYTHON_EXEC" "$SRC_MAIN" --helper "$@"

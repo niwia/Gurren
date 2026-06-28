@@ -1,38 +1,87 @@
-# Gurren
+# Gurren — ASSella Update Manager for Steam Deck
 
 **Gurren** is a [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) plugin for Steam Deck that manages ASSella-tracked game updates directly from the Quick Access Menu.
 
-The backend is powered by **Lagann** (`main.py`), a Python service that integrates with the ASSella game library system.
+The backend is powered by **Lagann** — a headless Python service that bridges the Gurren plugin with the ASSella game library system.
+
+---
+
+## ⚡ Quick Start
+
+### Step 1 — Install Decky Loader
+Follow the instructions at [decky.xyz](https://decky.xyz) if you haven't already.
+
+### Step 2 — Install Lagann (backend)
+Download the latest release from [Releases](https://github.com/niwia/Gurren/releases) and extract it. Then run:
+
+```bash
+bash lagann_setup.sh
+```
+
+This will:
+- Install the ASSella source to `~/.local/share/Lagann/`
+- Build a headless Python venv (no GUI packages)
+- Write the `asshead` launcher
+
+> **Note:** You need an active internet connection for the first run — pip downloads the Python dependencies.
+
+### Step 3 — Install Gurren plugin
+In Decky Loader, go to **Settings → Developer → Install Plugin from ZIP** and select `Gurren.zip` from the release.
+
+### Step 4 — Done!
+Open the Quick Access Menu (•••), click the Gurren icon, and you'll see your ASSella-managed games.
+
+---
 
 ## Features
 
-- 📋 **View all ASSella-managed games** in one place
-- 🔍 **Check for updates** across your entire library
-- ⬇️ **Download & install updates** with live progress tracking
-- ❌ **Cancel in-progress updates** at any time
+| Feature | Status |
+|---|---|
+| 📋 View all ASSella-managed games | ✅ |
+| 🔍 Check for updates across library | ✅ |
+| ⬇️ Download & install game updates | ✅ |
+| 📊 Live progress tracking | ✅ |
+| ❌ Cancel in-progress downloads | ✅ |
 
-## Installation
+---
 
-1. Install [Decky Loader](https://github.com/SteamDeckHomebrew/decky-loader) on your Steam Deck
-2. Download the latest `Gurren.zip` from [Releases](https://github.com/niwia/Gurren/releases)
-3. In Decky Loader's developer menu, choose **Install Plugin from ZIP** and select the file
+## Architecture
+
+| Component | Name   | Location | Role |
+|-----------|--------|----------|------|
+| Plugin    | Gurren | Decky Loader | React/TSX frontend |
+| Backend   | Lagann | `~/.local/share/Lagann/` | Python / ASSella bridge |
+
+---
+
+## How it Works
+
+Lagann reads ASSella's update cache at:
+```
+~/.local/share/ACCELA/update_status_cache.json
+```
+
+And calls ASSella in headless mode via:
+```
+~/.local/share/Lagann/asshead --check-updates
+~/.local/share/Lagann/asshead --appid <appid>
+```
+
+ASSella game markers (`.ACCELA` / `.DepotDownloader`) in your Steam library determine which games Gurren shows.
+
+---
 
 ## Development
 
 ```bash
-# Install dependencies
+# Install frontend dependencies
 pnpm install
 
 # Build the frontend
 pnpm build
 ```
 
-## Architecture
-
-| Component | Name   | Role                              |
-|-----------|--------|-----------------------------------|
-| Plugin    | Gurren | Decky Loader frontend (React/TSX) |
-| Backend   | Lagann | Python backend / ASSella bridge   |
+---
 
 ## License
 
