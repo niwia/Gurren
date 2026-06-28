@@ -181,6 +181,27 @@ const GurrenApp: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ color: "#dcdedf" }}>
+      <style>{`
+        .gurren-game-name-container {
+          overflow: hidden;
+          white-space: nowrap;
+          flex: 1;
+          margin-right: 8px;
+          text-align: left;
+        }
+        .gurren-game-name-text {
+          display: inline-block;
+          white-space: nowrap;
+          transition: transform 1.5s ease-in-out;
+        }
+        /* When focused/hovered, slide to show the end of long names */
+        .gurren-game-name-container:hover .gurren-game-name-text,
+        button:focus .gurren-game-name-text,
+        [data-focused="true"] .gurren-game-name-text,
+        :focus-within .gurren-game-name-text {
+          transform: translateX(min(0px, calc(-100% + 150px)));
+        }
+      `}</style>
 
       {/* ── Check Updates / Progress ─────────────────────────────────────── */}
       <PanelSection title="Gurren">
@@ -259,9 +280,11 @@ const GurrenApp: React.FC = () => {
                       alignItems: "center",
                       width: "100%"
                     }}>
-                      <span style={{ fontWeight: "bold", fontSize: "13px" }}>
-                        {game.name}
-                      </span>
+                      <div className="gurren-game-name-container">
+                        <span className="gurren-game-name-text" style={{ fontWeight: "bold", fontSize: "13px" }}>
+                          {game.name}
+                        </span>
+                      </div>
                       <span style={{
                         fontSize: "11px", color: "#C06C84", fontWeight: "bold",
                         background: "rgba(192,108,132,0.15)",
@@ -318,16 +341,11 @@ const GurrenApp: React.FC = () => {
                     width: "100%",
                     gap: "8px"
                   }}>
-                    <span style={{
-                      fontWeight: "bold",
-                      fontSize: "13px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      flex: 1
-                    }}>
-                      {game.name}
-                    </span>
+                    <div className="gurren-game-name-container">
+                      <span className="gurren-game-name-text" style={{ fontWeight: "bold", fontSize: "13px" }}>
+                        {game.name}
+                      </span>
+                    </div>
                     <span style={{
                       fontSize: "11px",
                       color: "#4caf50",

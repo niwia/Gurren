@@ -35,6 +35,75 @@ LOG_DOWNLOAD_FMT  = "/tmp/lagann_download_{appid}.log"
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+# Config files
+CONFIG_JSON = os.path.join(LAGANN_DIR, "config.json")
+ACCELA_CONF = os.path.join(DECK_HOME, ".config/Tachibana Labs/ACCELA.conf")
+
+def sync_config():
+    """Load config.json and sync settings to ACCELA.conf."""
+    default_config = {
+        "max_downloads": 32,
+        "save_old_manifests": True,
+        "max_old_manifests": 3
+    }
+    
+    # Load config.json
+    config = default_config.copy()
+    if os.path.isfile(CONFIG_JSON):
+        try:
+            with open(CONFIG_JSON, "r", encoding="utf-8") as f:
+                user_conf = json.load(f)
+            if isinstance(user_conf, dict):
+                config.update(user_conf)
+        except Exception as e:
+            logger.error(f"Lagann: Error loading config.json: {e}")
+            
+    # Save back/format config.json
+    try:
+        os.makedirs(LAGANN_DIR, exist_ok=True)
+        with open(CONFIG_JSON, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+    except Exception as e:
+        logger.error(f"Lagann: Error writing config.json: {e}")
+
+    # Synchronize to ACCELA.conf
+    conf_dir = os.path.dirname(ACCELA_CONF)
+    try:
+        os.makedirs(conf_dir, exist_ok=True)
+        
+        # Read existing file if it exists
+        content = ""
+        if os.path.isfile(ACCELA_CONF):
+            with open(ACCELA_CONF, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+                
+        # Parse and update key-value pairs
+        lines = content.splitlines()
+        updated_keys = set()
+        new_lines = []
+        for line in lines:
+            line_strip = line.strip()
+            if "=" in line_strip and not line_strip.startswith("#"):
+                key, val = line_strip.split("=", 1)
+                key = key.strip()
+                if key in config:
+                    new_lines.append(f"{key}={config[key]}")
+                    updated_keys.add(key)
+                    continue
+            new_lines.append(line)
+            
+        # Add missing keys
+        for key, val in config.items():
+            if key not in updated_keys:
+                new_lines.append(f"{key}={val}")
+                
+        with open(ACCELA_CONF, "w", encoding="utf-8") as f:
+            f.write("\n".join(new_lines) + "\n")
+            
+    except Exception as e:
+        logger.error(f"Lagann: Error syncing to ACCELA.conf: {e}")
+
+
 def _j(obj) -> str:
     """Ensure we always return a JSON string to the frontend."""
     if isinstance(obj, str):
@@ -162,6 +231,7 @@ class Plugin:
 
     async def _main(self):
         logger.info("Lagann: Plugin loaded")
+        sync_config()
         if not _lagann_ready():
             logger.warning(
                 f"Lagann: runtime not found at {LAGANN_DIR}. "
@@ -224,6 +294,7 @@ class Plugin:
             except Exception:
                 pass
 
+        sync_config()
         cmd = ["sudo", "-u", "deck", ASSHEAD, "--check-updates"]
         try:
             log_file = open(LOG_CHECK_UPDATES, "w")
@@ -312,6 +383,7 @@ class Plugin:
             except Exception:
                 pass
 
+        sync_config()
         cmd = ["sudo", "-u", "deck", ASSHEAD, "--appid", appid_str]
         try:
             log_file = open(log_path, "w")
