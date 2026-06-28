@@ -18,13 +18,16 @@ except ImportError:
 
 
 # ─── Lagann install directory ─────────────────────────────────────────────────
-LAGANN_DIR   = os.path.expanduser("~/.local/share/Lagann")
+# Decky Loader runs as root, so os.path.expanduser("~") resolves to /root.
+# We must use explicit /home/deck to locate the deck user's directories.
+DECK_HOME    = "/home/deck"
+LAGANN_DIR   = os.path.join(DECK_HOME, ".local/share/Lagann")
 ASSHEAD      = os.path.join(LAGANN_DIR, "asshead")
 PYTHON_EXEC  = os.path.join(LAGANN_DIR, "venv", "bin", "python3")
 SRC_MAIN     = os.path.join(LAGANN_DIR, "src", "main.py")
 
-# ASSella writes its update cache here (unchanged — must match ASSella's own path)
-ACCELA_CACHE = os.path.expanduser("~/.local/share/ACCELA/update_status_cache.json")
+# ASSella writes its update cache here (must match ASSella's own path)
+ACCELA_CACHE = os.path.join(DECK_HOME, ".local/share/ACCELA/update_status_cache.json")
 
 # Temp log files for background processes
 LOG_CHECK_UPDATES = "/tmp/lagann_check_updates.log"
@@ -59,9 +62,9 @@ ACTIVE_PROCESSES = {}
 
 def get_steam_libraries():
     paths = []
-    steam_path = os.path.expanduser("~/.local/share/Steam")
+    steam_path = os.path.join(DECK_HOME, ".local/share/Steam")
     if not os.path.isdir(steam_path):
-        steam_path = os.path.expanduser("~/.steam/steam")
+        steam_path = os.path.join(DECK_HOME, ".steam/steam")
 
     library_vdf = os.path.join(steam_path, "steamapps", "libraryfolders.vdf")
     if not os.path.exists(library_vdf):
