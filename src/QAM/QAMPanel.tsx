@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { PanelSection, PanelSectionRow, ButtonItem, ToggleField, Focusable } from "@decky/ui";
+import { PanelSection, PanelSectionRow, ButtonItem, ToggleField, SliderField, Focusable } from "@decky/ui";
 import { Backend } from "../Utils/Backend";
 import { StatusBar } from "./StatusBar";
 import { GameCard } from "../Components/GameCard";
@@ -167,6 +167,51 @@ export const QAMPanel: React.FC = () => {
               label="Show Up-to-Date Games"
               checked={showUpToDate}
               onChange={(checked) => setShowUpToDate(checked)}
+            />
+          </PanelSectionRow>
+        </PanelSection>
+      )}
+
+      {/* ── ASSella Backend Settings ── */}
+      {Backend.games.length > 0 && (
+        <PanelSection title="ASSella Settings">
+          <PanelSectionRow>
+            <ToggleField
+              label="Auto Apply Goldberg Emulator"
+              checked={Backend.config.auto_apply_goldberg}
+              onChange={(checked) => Backend.updateConfig({ auto_apply_goldberg: checked })}
+            />
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ToggleField
+              label="Auto DRM Removal (Steamless)"
+              checked={Backend.config.use_steamless}
+              onChange={(checked) => Backend.updateConfig({ use_steamless: checked })}
+            />
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ToggleField
+              label="Auto Generate Achievements"
+              checked={Backend.config.generate_achievements}
+              onChange={(checked) => Backend.updateConfig({ generate_achievements: checked })}
+            />
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <ToggleField
+              label="Keep Old Manifest Files"
+              checked={Backend.config.save_old_manifests}
+              onChange={(checked) => Backend.updateConfig({ save_old_manifests: checked })}
+            />
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <SliderField
+              label="Concurrent Downloads Limit"
+              value={Backend.config.max_downloads}
+              min={1}
+              max={32}
+              step={1}
+              showValue={true}
+              onChange={(val) => Backend.updateConfig({ max_downloads: val })}
             />
           </PanelSectionRow>
         </PanelSection>

@@ -1,5 +1,5 @@
 import { callable } from "@decky/api";
-import { GameInfo, CheckUpdatesStatus, UpdateGameStatus } from "../types";
+import { GameInfo, CheckUpdatesStatus, UpdateGameStatus, LagannConfig } from "../types";
 import { SteamUtils } from "./SteamUtils";
 
 // API callables mapped to the python backend
@@ -9,6 +9,8 @@ const getCheckUpdatesStatus = callable<[], string>("get_check_updates_status");
 const updateGame            = callable<[appid: number], string>("update_game");
 const getUpdateGameStatus   = callable<[appid: number], string>("get_update_game_status");
 const cancelUpdateGame      = callable<[appid: number], string>("cancel_update_game");
+const getConfig             = callable<[], string>("get_config");
+const saveConfig            = callable<[config_json: string], string>("save_config");
 
 export class Backend {
   private static listeners: Set<() => void> = new Set();
@@ -26,6 +28,15 @@ export class Backend {
   public static updateStatusMsg: string = "";
   
   public static downloadQueue: string[] = [];
+
+  public static config: LagannConfig = {
+    max_downloads: 32,
+    save_old_manifests: true,
+    max_old_manifests: 3,
+    use_steamless: false,
+    generate_achievements: false,
+    auto_apply_goldberg: false
+  };
 
   // Polling intervals
   private static checkInterval: NodeJS.Timeout | null = null;
@@ -55,8 +66,41 @@ export class Backend {
 
   static async init() {
     console.debug("[Gurren] Initializing Backend utility...");
+    await this.loadConfig();
     await this.loadGames();
     await this.resumeState();
+  }
+
+  // ==========================================================================
+  // Configuration Settings Management
+  // ==========================================================================
+
+  static async loadConfig() {
+    try {
+      console.debug("[Gurren] Loading ASSella configuration...");
+      const res = await getConfig();
+      this.config = JSON.parse(res);
+      this.notify();
+    } catch (e) {
+      console.error("[Gurren] Failed to load config from backend:", e);
+    }
+  }
+
+  static async updateConfig(updated: Partial<LagannConfig>) {
+    this.config = { ...this.config, ...updated };
+    this.notify();
+    try {
+      console.debug("[Gurren] Saving updated configuration:", updated);
+      const res = await saveConfig(JSON.stringify(this.config));
+      const parsed = JSON.parse(res);
+      if (!parsed.success) {
+        console.error("[Gurren] Failed to save config on backend:", parsed.error);
+        SteamUtils.notify("Config Error", "Failed to save configuration.");
+      }
+    } catch (e) {
+      console.error("[Gurren] Failed to update config:", e);
+      SteamUtils.notify("Config Error", "Failed to update configuration.");
+    }
   }
 
   static cleanup() {

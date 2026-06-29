@@ -34,3 +34,12 @@ export interface UpdateGameStatus {
   completed: boolean;
   error: boolean;
 }
+
+export interface LagannConfig {
+  max_downloads: number;
+  save_old_manifests: boolean;
+  max_old_manifests: number;
+  use_steamless: boolean;
+  generate_achievements: boolean;
+  auto_apply_goldberg: boolean;
+}

@@ -44,7 +44,10 @@ def sync_config():
     default_config = {
         "max_downloads": 32,
         "save_old_manifests": True,
-        "max_old_manifests": 3
+        "max_old_manifests": 3,
+        "use_steamless": False,
+        "generate_achievements": False,
+        "auto_apply_goldberg": False
     }
     
     # Load config.json
@@ -87,7 +90,8 @@ def sync_config():
                 key, val = line_strip.split("=", 1)
                 key = key.strip()
                 if key in config:
-                    new_lines.append(f"{key}={config[key]}")
+                    val_str = str(config[key]).lower() if isinstance(config[key], bool) else str(config[key])
+                    new_lines.append(f"{key}={val_str}")
                     updated_keys.add(key)
                     continue
             new_lines.append(line)
@@ -95,7 +99,8 @@ def sync_config():
         # Add missing keys
         for key, val in config.items():
             if key not in updated_keys:
-                new_lines.append(f"{key}={val}")
+                val_str = str(val).lower() if isinstance(val, bool) else str(val)
+                new_lines.append(f"{key}={val_str}")
                 
         with open(ACCELA_CONF, "w", encoding="utf-8") as f:
             f.write("\n".join(new_lines) + "\n")
@@ -262,6 +267,48 @@ class Plugin:
                 if not os.path.isfile(p)
             ]
         })
+
+    async def get_config(self) -> str:
+        """Read config.json and return settings as a JSON string."""
+        default_config = {
+            "max_downloads": 32,
+            "save_old_manifests": True,
+            "max_old_manifests": 3,
+            "use_steamless": False,
+            "generate_achievements": False,
+            "auto_apply_goldberg": False
+        }
+        config = default_config.copy()
+        if os.path.isfile(CONFIG_JSON):
+            try:
+                with open(CONFIG_JSON, "r", encoding="utf-8") as f:
+                    user_conf = json.load(f)
+                if isinstance(user_conf, dict):
+                    config.update(user_conf)
+            except Exception as e:
+                logger.error(f"Lagann: Error reading config.json: {e}")
+        return _j(config)
+
+    async def save_config(self, config_json: str) -> str:
+        """Save settings from frontend to config.json and sync to ACCELA.conf."""
+        try:
+            new_config = json.loads(config_json)
+            if not isinstance(new_config, dict):
+                return _j({"success": False, "error": "Invalid configuration format"})
+            
+            # Read current config to merge
+            current_config = json.loads(await self.get_config())
+            current_config.update(new_config)
+
+            os.makedirs(LAGANN_DIR, exist_ok=True)
+            with open(CONFIG_JSON, "w", encoding="utf-8") as f:
+                json.dump(current_config, f, indent=2)
+            
+            sync_config()
+            return _j({"success": True})
+        except Exception as e:
+            logger.error(f"Lagann: Error saving config.json: {e}")
+            return _j({"success": False, "error": str(e)})
 
     # ==========================================================================
     # ASSella Plugin API
