@@ -1,6 +1,6 @@
 {
   "name": "gurren",
-  "version": "1.2.0b",
+  "version": "1.2.0",
   "description": "Gurren — Decky Loader plugin for ASSella game library updates on Steam Deck, powered by Lagann",
   "type": "module",
   "scripts": {
