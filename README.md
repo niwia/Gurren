@@ -12,21 +12,23 @@ The backend is powered by **Lagann** — a headless Python service that bridges 
 Follow the instructions at [decky.xyz](https://decky.xyz) if you haven't already.
 
 ### Step 2 — Install Lagann (backend)
-Download the latest release from [Releases](https://github.com/niwia/Gurren/releases) and extract it. Then run:
+Open the Steam Deck Terminal (Konsole) and run the following single command to download and install Lagann:
 
 ```bash
-bash lagann_setup.sh
+curl -sSL https://raw.githubusercontent.com/niwia/Gurren/main/lagann_install.sh | bash
 ```
 
-This will:
-- Install the ASSella source to `~/.local/share/Lagann/`
-- Build a headless Python venv (no GUI packages)
-- Write the `asshead` launcher
+This will automatically:
+- Download the latest Lagann release zip from GitHub.
+- Extract and copy ASSella source files to `~/.local/share/Lagann/`
+- Build a headless Python virtual environment.
+- Create the executable `asshead` launcher.
+- Safely clean up all temporary installation folders.
 
-> **Note:** You need an active internet connection for the first run — pip downloads the Python dependencies.
+> **Note:** You need an active internet connection during setup so Python dependencies can be downloaded.
 
 ### Step 3 — Install Gurren plugin
-In Decky Loader, go to **Settings → Developer → Install Plugin from ZIP** and select `Gurren.zip` from the release.
+In Decky Loader, go to **Settings → Developer → Install Plugin from ZIP** and select `Gurren-v1.2.1.zip` (or the latest version) from the release.
 
 ### Step 4 — Done!
 Open the Quick Access Menu (•••), click the Gurren icon, and you'll see your ASSella-managed games.
