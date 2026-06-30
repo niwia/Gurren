@@ -34,7 +34,7 @@ error()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 print_banner() {
     echo -e ""
     echo -e "${CYAN}${BOLD}╔══════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}${BOLD}║     Lagann Setup — Gurren Plugin v1.2.1  ║${NC}"
+    echo -e "${CYAN}${BOLD}║     Lagann Setup — Gurren Plugin v1.2.2  ║${NC}"
     echo -e "${CYAN}${BOLD}╚══════════════════════════════════════════╝${NC}"
     echo -e ""
 }
@@ -143,7 +143,7 @@ verify() {
     if [ "$ok" = true ]; then
         echo -e ""
         echo -e "${GREEN}${BOLD}╔══════════════════════════════════════════╗${NC}"
-        echo -e "${GREEN}${BOLD}║  ✓ Lagann v1.2.1 installed successfully!  ║${NC}"
+        echo -e "${GREEN}${BOLD}║  ✓ Lagann v1.2.2 installed successfully!  ║${NC}"
         echo -e "${GREEN}${BOLD}║                                          ║${NC}"
         echo -e "${GREEN}${BOLD}║  You can now use the Gurren plugin       ║${NC}"
         echo -e "${GREEN}${BOLD}║  in Decky Loader.                        ║${NC}"

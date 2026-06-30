@@ -188,7 +188,7 @@ export const QAMPanel: React.FC = () => {
       )}
 
       {/* ── Footer ── */}
-      <div style={GurrenCSS.footer}>Gurren v1.2.1</div>
+      <div style={GurrenCSS.footer}>Gurren v1.2.2</div>
     </PanelSection>
   );
 };
