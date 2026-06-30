@@ -1,34 +1,31 @@
 import React, { useState, useEffect } from "react";
-import { PanelSection, PanelSectionRow, ButtonItem, ToggleField, SliderField, Focusable } from "@decky/ui";
+import {
+  PanelSection,
+  PanelSectionRow,
+  DialogButton,
+  ToggleField,
+  SliderField,
+  Focusable,
+  staticClasses
+} from "@decky/ui";
 import { Backend } from "../Utils/Backend";
 import { StatusBar } from "./StatusBar";
 import { GameCard } from "../Components/GameCard";
+import { GurrenCSS } from "./Gurren.css";
 
 export const QAMPanel: React.FC = () => {
   const [, setTick] = useState(0);
   const [showUpToDate, setShowUpToDate] = useState(false);
 
   useEffect(() => {
-    // Subscribe to state changes from Backend
     const unsubscribe = Backend.subscribe(() => setTick((t) => t + 1));
     return unsubscribe;
   }, []);
 
-  const handleCheckUpdates = async () => {
-    await Backend.triggerUpdateCheck();
-  };
+  const handleCheckUpdates = async () => { await Backend.triggerUpdateCheck(); };
+  const handleUpdateAll    = () => { Backend.queueAllUpdates(); };
+  const handleRefresh      = async () => { await Backend.loadGames(); };
 
-  const handleUpdateAll = () => {
-    Backend.queueAllUpdates();
-  };
-
-  const handleRefresh = async () => {
-    await Backend.loadGames();
-  };
-
-  // Filter game list:
-  // By default, only show games that have updates or are actively updating/queued (minimal UI).
-  // When showUpToDate is toggled, it expands to show all games.
   const visibleGames = Backend.games.filter(
     (g) =>
       g.update_status === "update_available" ||
@@ -37,190 +34,161 @@ export const QAMPanel: React.FC = () => {
       showUpToDate
   );
 
-  const upToDateCount = Backend.games.filter((g) => g.update_status === "up_to_date").length;
+  const upToDateCount  = Backend.games.filter((g) => g.update_status === "up_to_date").length;
   const updatableCount = Backend.games.filter((g) => g.update_status === "update_available").length;
+  const isBusy = Backend.checkingUpdates || !!Backend.updatingAppId;
 
   return (
-    <div style={{ color: "#dcdedf" }}>
-      {/* Sliding game name hover CSS */}
-      <style>{`
-        .gurren-game-name-container {
-          overflow: hidden;
-          white-space: nowrap;
-          flex: 1;
-          margin-right: 8px;
-          text-align: left;
-        }
-        .gurren-game-name-text {
-          display: inline-block;
-          white-space: nowrap;
-          transition: transform 1.5s ease-in-out;
-        }
-        .gurren-game-name-container:hover .gurren-game-name-text,
-        button:focus .gurren-game-name-text,
-        [data-focused="true"] .gurren-game-name-text,
-        :focus-within .gurren-game-name-text {
-          transform: translateX(min(0px, calc(-100% + 150px)));
-        }
-      `}</style>
+    <PanelSection>
+      {/* ── Status pill ── */}
+      <StatusBar />
 
-      {/* ── Status Bar & Main Action Buttons ── */}
-      <PanelSection title="Gurren">
-        <StatusBar />
+      {/* ── Action buttons (icon-only, compact — autoflatpaks style) ── */}
+      <PanelSectionRow>
+        <Focusable style={{ display: "flex" }} flow-children="horizontal">
 
+          {/* Check updates */}
+          <DialogButton
+            style={GurrenCSS.actionButton}
+            disabled={isBusy}
+            onClick={handleCheckUpdates}
+            onOKActionDescription="Check for updates"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                 stroke="currentColor" strokeWidth="2.5"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+          </DialogButton>
+
+          {/* Update all */}
+          <DialogButton
+            style={GurrenCSS.actionButton}
+            disabled={isBusy || updatableCount === 0}
+            onClick={handleUpdateAll}
+            onOKActionDescription="Update all games"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                 stroke="currentColor" strokeWidth="2.5"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+          </DialogButton>
+
+          {/* Refresh library */}
+          <DialogButton
+            style={GurrenCSS.actionButton}
+            disabled={Backend.loading || isBusy}
+            onClick={handleRefresh}
+            onOKActionDescription="Refresh game library"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                 stroke="currentColor" strokeWidth="2.5"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </DialogButton>
+
+        </Focusable>
+      </PanelSectionRow>
+
+      {/* ── Summary line ── */}
+      {!Backend.checkingUpdates && Backend.games.length > 0 && (
         <PanelSectionRow>
-          <Focusable style={{ display: "flex", gap: "6px", width: "100%" }} flow-children="horizontal">
-            <div style={{ flex: 1 }}>
-              <ButtonItem
-                layout="below"
-                onClick={handleCheckUpdates}
-                disabled={Backend.checkingUpdates || !!Backend.updatingAppId}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
-                       stroke="currentColor" strokeWidth="2.5"
-                       strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                  </svg>
-                  Check
-                </div>
-              </ButtonItem>
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <ButtonItem
-                layout="below"
-                onClick={handleUpdateAll}
-                disabled={Backend.checkingUpdates || updatableCount === 0 || !!Backend.updatingAppId}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
-                       stroke="currentColor" strokeWidth="2.5"
-                       strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
-                  </svg>
-                  Update All
-                </div>
-              </ButtonItem>
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <ButtonItem
-                layout="below"
-                onClick={handleRefresh}
-                disabled={Backend.loading || Backend.checkingUpdates || !!Backend.updatingAppId}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none"
-                       stroke="currentColor" strokeWidth="2.5"
-                       strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                  </svg>
-                  Refresh
-                </div>
-              </ButtonItem>
-            </div>
-          </Focusable>
+          <div style={GurrenCSS.summaryText}>
+            {updatableCount === 0
+              ? `✓ All ${upToDateCount} games up to date`
+              : `${updatableCount} update${updatableCount !== 1 ? "s" : ""} available · ${upToDateCount} up to date`}
+          </div>
         </PanelSectionRow>
+      )}
 
-        {/* Summary Details */}
-        {!Backend.checkingUpdates && Backend.games.length > 0 && (
-          <PanelSectionRow>
-            <div style={{ fontSize: "11px", color: "#8b929a", padding: "2px 0" }}>
-              {updatableCount === 0
-                ? `✓ All ${upToDateCount} games are up to date`
-                : `${updatableCount} update${updatableCount !== 1 ? "s" : ""} available · ${upToDateCount} up to date`
-              }
-            </div>
-          </PanelSectionRow>
-        )}
-      </PanelSection>
+      {/* ── Games list ── */}
+      <div className={staticClasses.PanelSectionTitle}>
+        {showUpToDate ? "All ASSella Games" : "Updates Available"}
+      </div>
 
-      {/* ── Games List ── */}
-      <PanelSection title={showUpToDate ? "All ASSella Games" : "Updates Available"}>
-        {Backend.loading ? (
-          <PanelSectionRow>
-            <div style={{ textAlign: "center", padding: "12px", color: "#8b929a", fontSize: "12px" }}>
-              Scanning libraries...
-            </div>
-          </PanelSectionRow>
-        ) : visibleGames.length === 0 ? (
-          <PanelSectionRow>
-            <div style={{ textAlign: "center", padding: "12px", color: "#8b929a", fontSize: "12px" }}>
-              {Backend.games.length === 0
-                ? "No ASSella-managed games found."
-                : "No updates available."}
-            </div>
-          </PanelSectionRow>
-        ) : (
-          visibleGames.map((game) => (
-            <GameCard key={game.appid} game={game} />
-          ))
-        )}
-      </PanelSection>
+      {Backend.loading ? (
+        <PanelSectionRow>
+          <div style={{ ...GurrenCSS.summaryText, textAlign: "center", padding: "10px 0" }}>
+            Scanning libraries...
+          </div>
+        </PanelSectionRow>
+      ) : visibleGames.length === 0 ? (
+        <PanelSectionRow>
+          <div style={{ ...GurrenCSS.summaryText, textAlign: "center", padding: "10px 0" }}>
+            {Backend.games.length === 0 ? "No ASSella-managed games found." : "No updates available."}
+          </div>
+        </PanelSectionRow>
+      ) : (
+        visibleGames.map((game) => <GameCard key={game.appid} game={game} />)
+      )}
 
-      {/* ── Expanded UI Options ── */}
+      {/* ── UI Options ── */}
       {Backend.games.length > 0 && (
-        <PanelSection title="UI Options">
+        <>
+          <div className={staticClasses.PanelSectionTitle}>Options</div>
           <PanelSectionRow>
             <ToggleField
               label="Show Up-to-Date Games"
               checked={showUpToDate}
-              onChange={(checked) => setShowUpToDate(checked)}
+              onChange={(v) => setShowUpToDate(v)}
             />
           </PanelSectionRow>
-        </PanelSection>
+        </>
       )}
 
-      {/* ── ASSella Backend Settings ── */}
+      {/* ── ASSella Settings ── */}
       {Backend.games.length > 0 && (
-        <PanelSection title="ASSella Settings">
-          <PanelSectionRow>
-            <ToggleField
-              label="Auto Apply Goldberg Emulator"
-              checked={Backend.config.auto_apply_goldberg}
-              onChange={(checked) => Backend.updateConfig({ auto_apply_goldberg: checked })}
-            />
-          </PanelSectionRow>
+        <>
+          <div className={staticClasses.PanelSectionTitle}>ASSella Settings</div>
+
           <PanelSectionRow>
             <ToggleField
               label="Auto DRM Removal (Steamless)"
               checked={Backend.config.use_steamless}
-              onChange={(checked) => Backend.updateConfig({ use_steamless: checked })}
+              onChange={(v) => Backend.updateConfig({ use_steamless: v })}
             />
           </PanelSectionRow>
+
           <PanelSectionRow>
             <ToggleField
               label="Auto Generate Achievements"
               checked={Backend.config.generate_achievements}
-              onChange={(checked) => Backend.updateConfig({ generate_achievements: checked })}
+              onChange={(v) => Backend.updateConfig({ generate_achievements: v })}
             />
           </PanelSectionRow>
+
           <PanelSectionRow>
             <ToggleField
-              label="Keep Old Manifest Files"
+              label="Keep Old Manifests"
               checked={Backend.config.save_old_manifests}
-              onChange={(checked) => Backend.updateConfig({ save_old_manifests: checked })}
+              onChange={(v) => Backend.updateConfig({ save_old_manifests: v })}
             />
           </PanelSectionRow>
+
+          <PanelSectionRow>
+            <ToggleField
+              label="Apply Goldberg Emulator"
+              checked={Backend.config.auto_apply_goldberg}
+              onChange={(v) => Backend.updateConfig({ auto_apply_goldberg: v })}
+            />
+          </PanelSectionRow>
+
           <PanelSectionRow>
             <SliderField
-              label="Concurrent Downloads Limit"
+              label="Concurrent Downloads"
               value={Backend.config.max_downloads}
-              min={1}
-              max={32}
-              step={1}
+              min={1} max={8} step={1}
               showValue={true}
-              onChange={(val) => Backend.updateConfig({ max_downloads: val })}
+              onChange={(v) => Backend.updateConfig({ max_downloads: v })}
             />
           </PanelSectionRow>
-        </PanelSection>
+        </>
       )}
 
-      {/* ── Footer Version ── */}
-      <div style={{ textAlign: "center", fontSize: "10px", color: "#8b929a", marginTop: "14px", marginBottom: "4px", opacity: 0.6 }}>
-        Gurren v1.2.1
-      </div>
-    </div>
+      {/* ── Footer ── */}
+      <div style={GurrenCSS.footer}>Gurren v1.2.1</div>
+    </PanelSection>
   );
 };
