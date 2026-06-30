@@ -216,6 +216,11 @@ export const QAMPanel: React.FC = () => {
           </PanelSectionRow>
         </PanelSection>
       )}
+
+      {/* ── Footer Version ── */}
+      <div style={{ textAlign: "center", fontSize: "10px", color: "#8b929a", marginTop: "14px", marginBottom: "4px", opacity: 0.6 }}>
+        Gurren v1.2.1
+      </div>
     </div>
   );
 };
