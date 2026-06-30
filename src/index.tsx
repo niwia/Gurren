@@ -1,11 +1,16 @@
-import { definePlugin } from "@decky/api";
+import { definePlugin, routerHook } from "@decky/api";
 import { staticClasses } from "@decky/ui";
 import { QAMPanel } from "./QAM/QAMPanel";
+import { GamesPage } from "./Pages/GamesPage";
 import { Backend } from "./Utils/Backend";
 
 export default definePlugin(() => {
   // Initialize backend connection, cache and queue
   Backend.init();
+
+  if (routerHook) {
+    routerHook.addRoute("/gurren-manager", GamesPage);
+  }
 
   return {
     name: "Gurren",
@@ -19,6 +24,9 @@ export default definePlugin(() => {
       </svg>
     ),
     onDismount() {
+      if (routerHook) {
+        routerHook.removeRoute("/gurren-manager");
+      }
       // Clear intervals and event subscriptions
       Backend.cleanup();
     }

@@ -358,8 +358,10 @@ class Plugin:
         proc = ACTIVE_PROCESSES.get(proc_key)
 
         running = False
+        exit_code = None
         if proc:
-            if proc.poll() is None:
+            exit_code = proc.poll()
+            if exit_code is None:
                 running = True
             else:
                 del ACTIVE_PROCESSES[proc_key]
@@ -398,10 +400,14 @@ class Plugin:
             status_msg = "Not started"
 
         if not running and not completed and not error:
-            if os.path.exists(LOG_CHECK_UPDATES):
-                completed = True
-                progress = 100
-                status_msg = "Completed."
+            if exit_code is not None:
+                if exit_code == 0:
+                    completed = True
+                    progress = 100
+                    status_msg = "Completed successfully."
+                else:
+                    error = True
+                    status_msg = f"Process failed with exit code {exit_code}."
             else:
                 status_msg = "Idle"
 
@@ -447,8 +453,10 @@ class Plugin:
         proc = ACTIVE_PROCESSES.get(appid_str)
 
         running = False
+        exit_code = None
         if proc:
-            if proc.poll() is None:
+            exit_code = proc.poll()
+            if exit_code is None:
                 running = True
             else:
                 del ACTIVE_PROCESSES[appid_str]
@@ -489,10 +497,14 @@ class Plugin:
             status_msg = "Not started"
 
         if not running and not completed and not error:
-            if os.path.exists(log_path):
-                completed = True
-                progress = 100
-                status_msg = "Completed."
+            if exit_code is not None:
+                if exit_code == 0:
+                    completed = True
+                    progress = 100
+                    status_msg = "Completed successfully."
+                else:
+                    error = True
+                    status_msg = f"Process failed with exit code {exit_code}."
             else:
                 status_msg = "Idle"
 

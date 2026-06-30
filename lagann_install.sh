@@ -7,7 +7,7 @@
 
 set -euo pipefail
 
-VERSION="v1.2.2"
+VERSION="v1.2.3"
 RELEASE_URL="https://github.com/niwia/Gurren/releases/download/${VERSION}/Lagann-${VERSION}.zip"
 TEMP_DIR=$(mktemp -d /tmp/lagann_install_XXXXXX)
 

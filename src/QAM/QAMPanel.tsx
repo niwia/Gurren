@@ -3,9 +3,8 @@ import {
   PanelSection,
   PanelSectionRow,
   DialogButton,
-  ToggleField,
-  SliderField,
   Focusable,
+  Navigation,
   staticClasses
 } from "@decky/ui";
 import { Backend } from "../Utils/Backend";
@@ -15,7 +14,6 @@ import { GurrenCSS } from "./Gurren.css";
 
 export const QAMPanel: React.FC = () => {
   const [, setTick] = useState(0);
-  const [showUpToDate, setShowUpToDate] = useState(false);
 
   useEffect(() => {
     const unsubscribe = Backend.subscribe(() => setTick((t) => t + 1));
@@ -25,13 +23,17 @@ export const QAMPanel: React.FC = () => {
   const handleCheckUpdates = async () => { await Backend.triggerUpdateCheck(); };
   const handleUpdateAll    = () => { Backend.queueAllUpdates(); };
   const handleRefresh      = async () => { await Backend.loadGames(); };
+  const handleOpenManager  = () => {
+    Navigation.CloseSideMenus();
+    Navigation.Navigate("/gurren-manager");
+  };
 
-  const visibleGames = Backend.games.filter(
+  // QAM view only shows games that actually need attention (updates, active downloading, queued)
+  const updatableGames = Backend.games.filter(
     (g) =>
       g.update_status === "update_available" ||
       Backend.updatingAppId === g.appid ||
-      Backend.downloadQueue.includes(g.appid) ||
-      showUpToDate
+      Backend.downloadQueue.includes(g.appid)
   );
 
   const upToDateCount  = Backend.games.filter((g) => g.update_status === "up_to_date").length;
@@ -43,16 +45,15 @@ export const QAMPanel: React.FC = () => {
       {/* ── Status pill ── */}
       <StatusBar />
 
-      {/* ── Action buttons (icon-only, compact — autoflatpaks style) ── */}
+      {/* ── Action buttons row ── */}
       <PanelSectionRow>
         <Focusable style={{ display: "flex" }} flow-children="horizontal">
-
           {/* Check updates */}
           <DialogButton
             style={GurrenCSS.actionButton}
             disabled={isBusy}
             onClick={handleCheckUpdates}
-            onOKActionDescription="Check for updates"
+            onOKActionDescription="Check updates"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
                  stroke="currentColor" strokeWidth="2.5"
@@ -66,7 +67,7 @@ export const QAMPanel: React.FC = () => {
             style={GurrenCSS.actionButton}
             disabled={isBusy || updatableCount === 0}
             onClick={handleUpdateAll}
-            onOKActionDescription="Update all games"
+            onOKActionDescription="Update all"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
                  stroke="currentColor" strokeWidth="2.5"
@@ -80,7 +81,7 @@ export const QAMPanel: React.FC = () => {
             style={GurrenCSS.actionButton}
             disabled={Backend.loading || isBusy}
             onClick={handleRefresh}
-            onOKActionDescription="Refresh game library"
+            onOKActionDescription="Refresh library"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
                  stroke="currentColor" strokeWidth="2.5"
@@ -89,6 +90,23 @@ export const QAMPanel: React.FC = () => {
             </svg>
           </DialogButton>
 
+          {/* Open full manager page */}
+          <DialogButton
+            style={GurrenCSS.actionButton}
+            onClick={handleOpenManager}
+            onOKActionDescription="Open manager"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none"
+                 stroke="currentColor" strokeWidth="2.5"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </DialogButton>
         </Focusable>
       </PanelSectionRow>
 
@@ -98,15 +116,13 @@ export const QAMPanel: React.FC = () => {
           <div style={GurrenCSS.summaryText}>
             {updatableCount === 0
               ? `✓ All ${upToDateCount} games up to date`
-              : `${updatableCount} update${updatableCount !== 1 ? "s" : ""} available · ${upToDateCount} up to date`}
+              : `${updatableCount} update${updatableCount !== 1 ? "s" : ""} available`}
           </div>
         </PanelSectionRow>
       )}
 
       {/* ── Games list ── */}
-      <div className={staticClasses.PanelSectionTitle}>
-        {showUpToDate ? "All ASSella Games" : "Updates Available"}
-      </div>
+      <div className={staticClasses.PanelSectionTitle}>Updates Available</div>
 
       {Backend.loading ? (
         <PanelSectionRow>
@@ -114,81 +130,18 @@ export const QAMPanel: React.FC = () => {
             Scanning libraries...
           </div>
         </PanelSectionRow>
-      ) : visibleGames.length === 0 ? (
+      ) : updatableGames.length === 0 ? (
         <PanelSectionRow>
           <div style={{ ...GurrenCSS.summaryText, textAlign: "center", padding: "10px 0" }}>
-            {Backend.games.length === 0 ? "No ASSella-managed games found." : "No updates available."}
+            No updates available.
           </div>
         </PanelSectionRow>
       ) : (
-        visibleGames.map((game) => <GameCard key={game.appid} game={game} />)
-      )}
-
-      {/* ── UI Options ── */}
-      {Backend.games.length > 0 && (
-        <>
-          <div className={staticClasses.PanelSectionTitle}>Options</div>
-          <PanelSectionRow>
-            <ToggleField
-              label="Show Up-to-Date Games"
-              checked={showUpToDate}
-              onChange={(v) => setShowUpToDate(v)}
-            />
-          </PanelSectionRow>
-        </>
-      )}
-
-      {/* ── ASSella Settings ── */}
-      {Backend.games.length > 0 && (
-        <>
-          <div className={staticClasses.PanelSectionTitle}>ASSella Settings</div>
-
-          <PanelSectionRow>
-            <ToggleField
-              label="Auto DRM Removal (Steamless)"
-              checked={Backend.config.use_steamless}
-              onChange={(v) => Backend.updateConfig({ use_steamless: v })}
-            />
-          </PanelSectionRow>
-
-          <PanelSectionRow>
-            <ToggleField
-              label="Auto Generate Achievements"
-              checked={Backend.config.generate_achievements}
-              onChange={(v) => Backend.updateConfig({ generate_achievements: v })}
-            />
-          </PanelSectionRow>
-
-          <PanelSectionRow>
-            <ToggleField
-              label="Keep Old Manifests"
-              checked={Backend.config.save_old_manifests}
-              onChange={(v) => Backend.updateConfig({ save_old_manifests: v })}
-            />
-          </PanelSectionRow>
-
-          <PanelSectionRow>
-            <ToggleField
-              label="Apply Goldberg Emulator"
-              checked={Backend.config.auto_apply_goldberg}
-              onChange={(v) => Backend.updateConfig({ auto_apply_goldberg: v })}
-            />
-          </PanelSectionRow>
-
-          <PanelSectionRow>
-            <SliderField
-              label="Concurrent Downloads"
-              value={Backend.config.max_downloads}
-              min={1} max={8} step={1}
-              showValue={true}
-              onChange={(v) => Backend.updateConfig({ max_downloads: v })}
-            />
-          </PanelSectionRow>
-        </>
+        updatableGames.map((game) => <GameCard key={game.appid} game={game} />)
       )}
 
       {/* ── Footer ── */}
-      <div style={GurrenCSS.footer}>Gurren v1.2.2</div>
+      <div style={GurrenCSS.footer}>Gurren v1.2.3</div>
     </PanelSection>
   );
 };

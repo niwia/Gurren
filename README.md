@@ -28,7 +28,7 @@ This will automatically:
 > **Note:** You need an active internet connection during setup so Python dependencies can be downloaded.
 
 ### Step 3 — Install Gurren plugin
-In Decky Loader, go to **Settings → Developer → Install Plugin from ZIP** and select `Gurren-v1.2.1.zip` (or the latest version) from the release.
+In Decky Loader, go to **Settings → Developer → Install Plugin from ZIP** and select `Gurren-v1.2.3.zip` (or the latest version) from the release.
 
 ### Step 4 — Done!
 Open the Quick Access Menu (•••), click the Gurren icon, and you'll see your ASSella-managed games.
